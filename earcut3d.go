@@ -104,10 +104,15 @@ func triangulate(p []Vector2D) [][]Vector2D {
 
 // Assuming we have 3D points a, b, c, d lying on the same plane
 func transform(points3D []Vector3D) [][]Vector3D {
+	if len(points3D) < 3 {
+		println("Not enough points to transform")
+		return nil
+	}
 	// And two direction vectors dir1 and dir2 in the plane
 	vectors := []Vector3D{subtract(points3D[1], points3D[0]), subtract(points3D[2], points3D[0])}
 	orthonormalBasis := gramSchmidt(vectors...)
 	if len(orthonormalBasis) < 2 {
+		println("Cannot find orthonormal basis")
 		return nil
 	}
 	dir1, dir2 := orthonormalBasis[0], orthonormalBasis[1]
