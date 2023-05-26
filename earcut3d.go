@@ -35,6 +35,13 @@ func dotProduct(v1, v2 Vector3D) float64 {
 	return v1.X*v2.X + v1.Y*v2.Y + v1.Z*v2.Z
 }
 
+func distance(a, b Vector3D) float64 {
+	dx := a.X - b.X
+	dy := a.Y - b.Y
+	dz := a.Z - b.Z
+	return math.Sqrt(dx*dx + dy*dy + dz*dz)
+}
+
 func multiplyByScalar(v Vector3D, scalar float64) Vector3D {
 	return Vector3D{v.X * scalar, v.Y * scalar, v.Z * scalar}
 }
@@ -63,6 +70,48 @@ func gramSchmidt(vectors ...Vector3D) []Vector3D {
 	return orthonormalBasis
 }
 
+func normalize(v Vector3D) Vector3D {
+	length := math.Sqrt(dotProduct(v, v))
+	if length == 0 { // Check for zero length
+		return v
+	}
+	return multiplyByScalar(v, 1.0/length)
+}
+
+func isNearlyParallel(v1, v2 Vector3D, tolerance float64) bool {
+	// Calculate the dot product of normalized vectors
+	v1Normalized := normalize(v1)
+	v2Normalized := normalize(v2)
+	cosineOfAngle := dotProduct(v1Normalized, v2Normalized)
+
+	// Cosine of angle will be nearly 1 for nearly parallel vectors
+	return math.Abs(cosineOfAngle-1) < tolerance || math.Abs(cosineOfAngle+1) < tolerance
+}
+
+func findInitialVectors(points3D []Vector3D) []Vector3D {
+	centroid := Vector3D{}
+	for _, point := range points3D {
+		centroid = add(centroid, point)
+	}
+	centroid = multiplyByScalar(centroid, 1.0/float64(len(points3D)))
+
+	translatedPoints := []Vector3D{}
+	for _, point := range points3D {
+		translatedPoints = append(translatedPoints, subtract(point, centroid))
+	}
+
+	for i := 0; i < len(translatedPoints); i++ {
+		for j := i + 1; j < len(translatedPoints); j++ {
+			if isNearlyParallel(translatedPoints[i], translatedPoints[j], 0.01) {
+				continue
+			}
+			return []Vector3D{translatedPoints[i], translatedPoints[j]}
+		}
+	}
+
+	return nil
+}
+
 func isZeroVector(v Vector3D) bool {
 	const epsilon = 1e-10
 	return math.Abs(v.X) < epsilon && math.Abs(v.Y) < epsilon && math.Abs(v.Z) < epsilon
@@ -80,6 +129,34 @@ func projectPointTo3D(point2D Vector2D, refPoint, dir1, dir2 Vector3D) Vector3D 
 	yComponent := multiplyByScalar(dir2, point2D.Y)
 
 	return add(refPoint, add(xComponent, yComponent))
+}
+
+func mergeClosePoints(faces [][]Vector3D, threshold float64) [][]Vector3D {
+	mergedFaces := make([][]Vector3D, len(faces))
+
+	seenPoints := map[Vector3D]bool{}
+	for i, face1 := range faces {
+		mergedFace := make([]Vector3D, len(face1))
+		copy(mergedFace, face1)
+
+		for j, point1 := range face1 {
+			if seenPoints[point1] == false {
+				for _, face2 := range faces {
+					for _, point2 := range face2 {
+						if seenPoints[point2] == false && point1 != point2 && distance(point1, point2) < threshold {
+							mergedFace[j] = point2
+							seenPoints[point1] = true
+							seenPoints[point2] = true
+						}
+					}
+				}
+			}
+		}
+
+		mergedFaces[i] = mergedFace
+	}
+
+	return mergedFaces
 }
 
 func triangulate(p []Vector2D) [][]Vector2D {
@@ -109,7 +186,7 @@ func transform(points3D []Vector3D) [][]Vector3D {
 		return nil
 	}
 	// And two direction vectors dir1 and dir2 in the plane
-	vectors := []Vector3D{subtract(points3D[1], points3D[0]), subtract(points3D[2], points3D[0])}
+	vectors := findInitialVectors(points3D)
 	orthonormalBasis := gramSchmidt(vectors...)
 	if len(orthonormalBasis) < 2 {
 		println("Cannot find orthonormal basis")
@@ -180,5 +257,6 @@ func Earcut(faces [][]Vector3D) [][]Vector3D {
 	for _, face := range faces {
 		triangles = append(triangles, transform(face)...)
 	}
+	triangles = mergeClosePoints(triangles, 0.01) // merge points closer than 0.01
 	return triangles
 }
