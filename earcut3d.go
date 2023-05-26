@@ -132,31 +132,66 @@ func projectPointTo3D(point2D Vector2D, refPoint, dir1, dir2 Vector3D) Vector3D 
 }
 
 func mergeClosePoints(faces [][]Vector3D, threshold float64) [][]Vector3D {
-	mergedFaces := make([][]Vector3D, len(faces))
-
-	seenPoints := map[Vector3D]bool{}
-	for i, face1 := range faces {
-		mergedFace := make([]Vector3D, len(face1))
-		copy(mergedFace, face1)
-
-		for j, point1 := range face1 {
-			if seenPoints[point1] == false {
-				for _, face2 := range faces {
-					for _, point2 := range face2 {
-						if seenPoints[point2] == false && point1 != point2 && distance(point1, point2) < threshold {
-							mergedFace[j] = point2
-							seenPoints[point1] = true
-							seenPoints[point2] = true
-						}
-					}
-				}
-			}
-		}
-
-		mergedFaces[i] = mergedFace
+	type Cluster struct {
+		points []Vector3D
 	}
 
-	return mergedFaces
+	// List of all clusters
+	clusters := []*Cluster{}
+
+	for _, face := range faces {
+		for _, point := range face {
+			found := false
+			for _, cluster := range clusters {
+				for _, clusterPoint := range cluster.points {
+					if distance(point, clusterPoint) < threshold {
+						cluster.points = append(cluster.points, point)
+						found = true
+						break
+					}
+				}
+				if found {
+					break
+				}
+			}
+			if !found {
+				newCluster := &Cluster{[]Vector3D{point}}
+				clusters = append(clusters, newCluster)
+			}
+		}
+	}
+
+	// Build a map from original points to their corresponding centroid
+	pointToCentroid := map[Vector3D]Vector3D{}
+	for _, cluster := range clusters {
+		centroid := calculateCentroid(cluster.points)
+		for _, point := range cluster.points {
+			pointToCentroid[point] = centroid
+		}
+	}
+
+	// Build the new set of faces
+	newFaces := make([][]Vector3D, len(faces))
+	for i, face := range faces {
+		newFace := make([]Vector3D, len(face))
+		for j, point := range face {
+			newFace[j] = pointToCentroid[point]
+		}
+		newFaces[i] = newFace
+	}
+
+	return newFaces
+}
+
+func calculateCentroid(points []Vector3D) Vector3D {
+	var sumX, sumY, sumZ float64
+	for _, point := range points {
+		sumX += point.X
+		sumY += point.Y
+		sumZ += point.Z
+	}
+	length := float64(len(points))
+	return Vector3D{sumX / length, sumY / length, sumZ / length}
 }
 
 func triangulate(p []Vector2D) [][]Vector2D {
