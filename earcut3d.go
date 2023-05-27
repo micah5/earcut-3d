@@ -194,15 +194,23 @@ func calculateCentroid(points []Vector3D) Vector3D {
 	return Vector3D{sumX / length, sumY / length, sumZ / length}
 }
 
-func triangulate(p []Vector2D) [][]Vector2D {
+func triangulate(p []Vector2D, holes ...[]Vector2D) [][]Vector2D {
 	if len(p) < 3 {
 		return nil
 	} else if len(p) == 3 {
 		return [][]Vector2D{p}
 	}
 	var triangles [][]Vector2D
+
+	// Create flat points array
 	flatPoints := flatten(p)
-	indices, _ := earcut.Earcut(flatPoints, nil, 2)
+	holeIndices := []int{}
+	for _, hole := range holes {
+		holeIndices = append(holeIndices, len(flatPoints)/2)
+		flatPoints = append(flatPoints, flatten(hole)...)
+	}
+
+	indices, _ := earcut.Earcut(flatPoints, holeIndices, 2)
 	for i := 0; i < len(indices); i += 3 {
 		vertices := make([]Vector2D, 3)
 		for j := 0; j < 3; j++ {
@@ -215,7 +223,7 @@ func triangulate(p []Vector2D) [][]Vector2D {
 }
 
 // Assuming we have 3D points a, b, c, d lying on the same plane
-func transform(points3D []Vector3D) [][]Vector3D {
+func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 	if len(points3D) < 3 {
 		println("Not enough points to transform")
 		return nil
@@ -231,14 +239,24 @@ func transform(points3D []Vector3D) [][]Vector3D {
 
 	// Let's project all points to 2D
 	points2D := []Vector2D{}
-
 	for _, point3D := range points3D {
 		point2D := projectPointToPlane(point3D, points3D[0], dir1, dir2)
 		points2D = append(points2D, point2D)
 	}
 
+	// Project holes to 2D
+	holes2D := [][]Vector2D{}
+	for _, hole3D := range holes3D {
+		hole2D := []Vector2D{}
+		for _, point3D := range hole3D {
+			point2D := projectPointToPlane(point3D, points3D[0], dir1, dir2)
+			hole2D = append(hole2D, point2D)
+		}
+		holes2D = append(holes2D, hole2D)
+	}
+
 	// Triangulate the 2D points
-	triangles2D := triangulate(points2D)
+	triangles2D := triangulate(points2D, holes2D...)
 
 	// Convert 2D points back to 3D
 	triangles3D := [][]Vector3D{}
@@ -287,10 +305,14 @@ func CreateObjFile(name string, triangles [][]Vector3D) {
 	}
 }
 
-func Earcut(faces [][]Vector3D) [][]Vector3D {
+func Earcut(faces [][]Vector3D, holes ...[][]Vector3D) [][]Vector3D {
 	triangles := [][]Vector3D{}
-	for _, face := range faces {
-		triangles = append(triangles, transform(face)...)
+	for i, face := range faces {
+		_holes := [][]Vector3D{}
+		if len(holes) > i {
+			_holes = holes[i]
+		}
+		triangles = append(triangles, transform(face, _holes...)...)
 	}
 	triangles = mergeClosePoints(triangles, 0.01) // merge points closer than 0.01
 	return triangles
