@@ -117,7 +117,7 @@ func isZeroVector(v Vector3D) bool {
 	return math.Abs(v.X) < epsilon && math.Abs(v.Y) < epsilon && math.Abs(v.Z) < epsilon
 }
 
-func projectPointToPlane(point, refPoint, dir1, dir2 Vector3D) Vector2D {
+func projectPointTo2D(point, refPoint, dir1, dir2 Vector3D) Vector2D {
 	translatedPoint := subtract(point, refPoint) // Translate to origin
 	x := dotProduct(translatedPoint, dir1)
 	y := dotProduct(translatedPoint, dir2)
@@ -240,7 +240,7 @@ func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 	// Let's project all points to 2D
 	points2D := []Vector2D{}
 	for _, point3D := range points3D {
-		point2D := projectPointToPlane(point3D, points3D[0], dir1, dir2)
+		point2D := projectPointTo2D(point3D, points3D[0], dir1, dir2)
 		points2D = append(points2D, point2D)
 	}
 
@@ -249,7 +249,7 @@ func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 	for _, hole3D := range holes3D {
 		hole2D := []Vector2D{}
 		for _, point3D := range hole3D {
-			point2D := projectPointToPlane(point3D, points3D[0], dir1, dir2)
+			point2D := projectPointTo2D(point3D, points3D[0], dir1, dir2)
 			hole2D = append(hole2D, point2D)
 		}
 		holes2D = append(holes2D, hole2D)
@@ -269,6 +269,35 @@ func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 		triangles3D = append(triangles3D, points3DTransformed)
 	}
 	return triangles3D
+}
+
+func FindBasis(points []Vector3D) []Vector3D {
+	vectors := findInitialVectors(points)
+	orthonormalBasis := gramSchmidt(vectors...)
+	if len(orthonormalBasis) < 2 {
+		println("Cannot find orthonormal basis")
+		return nil
+	}
+	return orthonormalBasis
+}
+
+func ProjectShapeTo2D(plane []Vector3D, basis []Vector3D) []Vector2D {
+	points2D := []Vector2D{}
+	for _, point3D := range plane {
+		point2D := projectPointTo2D(point3D, plane[0], basis[0], basis[1])
+		points2D = append(points2D, point2D)
+	}
+	return points2D
+}
+
+func ProjectShapeTo3D(shape []Vector2D, orthonormalBasis []Vector3D, refPoint Vector3D) []Vector3D {
+	// Project 2D points back to 3D
+	points3D := []Vector3D{}
+	for _, point2D := range shape {
+		point3D := projectPointTo3D(point2D, refPoint, orthonormalBasis[0], orthonormalBasis[1])
+		points3D = append(points3D, point3D)
+	}
+	return points3D
 }
 
 func CreateObjFile(name string, triangles [][]Vector3D) {
