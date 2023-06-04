@@ -7,25 +7,21 @@ import (
 	"testing"
 )
 
-var cube = [][]Vector3D{
-	{{0, 0, 0}, {0, 0, 1}, {0, 1, 1}, {0, 1, 0}},
-	{{1, 0, 0}, {1, 1, 0}, {1, 1, 1}, {1, 0, 1}},
-	{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}},
-	{{0, 1, 0}, {0, 1, 1}, {1, 1, 1}, {1, 1, 0}},
-	{{0, 0, 0}, {0, 1, 0}, {1, 1, 0}, {1, 0, 0}},
-	{{0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1}},
+var cube = [][]float64{
+	{0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0},
+	{1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1},
+	{0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1},
+	{0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0},
+	{0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0},
+	{0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1},
 }
 
-func convertToInts(vectors [][]Vector3D) [][]Vector3D {
-	rounded := [][]Vector3D{}
+func convertToInts(vectors [][]float64) [][]float64 {
+	rounded := [][]float64{}
 	for _, face := range vectors {
-		roundedFace := []Vector3D{}
+		roundedFace := []float64{}
 		for _, vertex := range face {
-			roundedFace = append(roundedFace, Vector3D{
-				float64(math.Round(vertex.X)),
-				float64(math.Round(vertex.Y)),
-				float64(math.Round(vertex.Z)),
-			})
+			roundedFace = append(roundedFace, float64(math.Round(vertex)))
 		}
 		rounded = append(rounded, roundedFace)
 	}
@@ -37,19 +33,19 @@ func TestEarcut(t *testing.T) {
 	triangles = convertToInts(triangles)
 
 	// Check if output is correct
-	expectedTriangles := [][]Vector3D{
-		{{0, 1, 1}, {0, 1, 0}, {0, 0, 0}},
-		{{0, 0, 0}, {0, 0, 1}, {0, 1, 1}},
-		{{1, 1, 1}, {1, 0, 1}, {1, 0, 0}},
-		{{1, 0, 0}, {1, 1, 0}, {1, 1, 1}},
-		{{1, 0, 1}, {0, 0, 1}, {0, 0, 0}},
-		{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}},
-		{{1, 1, 1}, {1, 1, 0}, {0, 1, 0}},
-		{{0, 1, 0}, {0, 1, 1}, {1, 1, 1}},
-		{{1, 1, 0}, {1, 0, 0}, {0, 0, 0}},
-		{{0, 0, 0}, {0, 1, 0}, {1, 1, 0}},
-		{{1, 1, 1}, {0, 1, 1}, {0, 0, 1}},
-		{{0, 0, 1}, {1, 0, 1}, {1, 1, 1}},
+	expectedTriangles := [][]float64{
+		{0, 1, 1, 0, 1, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 1, 0, 1, 1},
+		{1, 1, 1, 1, 0, 1, 1, 0, 0},
+		{1, 0, 0, 1, 1, 0, 1, 1, 1},
+		{1, 0, 1, 0, 0, 1, 0, 0, 0},
+		{0, 0, 0, 1, 0, 0, 1, 0, 1},
+		{1, 1, 1, 1, 1, 0, 0, 1, 0},
+		{0, 1, 0, 0, 1, 1, 1, 1, 1},
+		{1, 1, 0, 1, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 1, 0, 1, 1, 0},
+		{1, 1, 1, 0, 1, 1, 0, 0, 1},
+		{0, 0, 1, 1, 0, 1, 1, 1, 1},
 	}
 	if !reflect.DeepEqual(triangles, expectedTriangles) {
 		t.Fatalf("Output was incorrect, got: %+v, want: %+v.", triangles, expectedTriangles)
@@ -60,8 +56,8 @@ func TestProjection(t *testing.T) {
 	inputFace := cube[0]
 	basis := FindBasis(inputFace)
 	points2D := ProjectShapeTo2D(inputFace, basis)
-	points3D := ProjectShapeTo3D(points2D, basis, inputFace[0])
-	points3D = convertToInts([][]Vector3D{points3D})[0]
+	points3D := ProjectShapeTo3D(points2D, basis, []float64{0, 0, 0})
+	points3D = convertToInts([][]float64{points3D})[0]
 
 	// Check that points3D are the same as the original points
 	if !reflect.DeepEqual(points3D, inputFace) {

@@ -9,7 +9,7 @@ func main() {
 	radius := 1.0
 	divisions := 9
 
-	vertices := make([]earcut3d.Vector3D, (divisions+1)*(divisions+1))
+	vertices := make([][]float64, (divisions+1)*(divisions+1))
 	faces := make([][]int, divisions*divisions)
 
 	index := 0
@@ -22,7 +22,7 @@ func main() {
 			y := radius * math.Sin(phi) * math.Sin(theta)
 			z := radius * math.Cos(phi)
 
-			vertices[index] = earcut3d.Vector3D{x, y, z}
+			vertices[index] = []float64{x, y, z}
 			index++
 		}
 	}
@@ -45,10 +45,13 @@ func main() {
 	}
 
 	// Prepare for writing
-	sphere := make([][]earcut3d.Vector3D, 0)
+	sphere := make([][]float64, 0)
 	for _, face := range faces {
 		if len(face) == 4 {
-			sphere = append(sphere, []earcut3d.Vector3D{vertices[face[0]-1], vertices[face[1]-1], vertices[face[2]-1], vertices[face[3]-1]})
+			flatFace := append(vertices[face[0]-1], vertices[face[1]-1]...)
+			flatFace = append(flatFace, vertices[face[2]-1]...)
+			flatFace = append(flatFace, vertices[face[3]-1]...)
+			sphere = append(sphere, flatFace)
 		}
 	}
 

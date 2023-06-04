@@ -15,6 +15,14 @@ type Vector2D struct {
 	X, Y float64
 }
 
+func build(flatPoints []float64) []Vector2D {
+	points2D := []Vector2D{}
+	for i := 0; i < len(flatPoints); i += 2 {
+		points2D = append(points2D, Vector2D{flatPoints[i], flatPoints[i+1]})
+	}
+	return points2D
+}
+
 func flatten(vectors []Vector2D) []float64 {
 	flat := []float64{}
 	for _, v := range vectors {
@@ -44,6 +52,38 @@ func distance(a, b Vector3D) float64 {
 
 func multiplyByScalar(v Vector3D, scalar float64) Vector3D {
 	return Vector3D{v.X * scalar, v.Y * scalar, v.Z * scalar}
+}
+
+func flattenVector3D(points []Vector3D) []float64 {
+	flatPoints := []float64{}
+	for _, point := range points {
+		flatPoints = append(flatPoints, point.X, point.Y, point.Z)
+	}
+	return flatPoints
+}
+
+func buildVector3D(flatPoints []float64) []Vector3D {
+	points := []Vector3D{}
+	for i := 0; i < len(flatPoints); i += 3 {
+		points = append(points, Vector3D{flatPoints[i], flatPoints[i+1], flatPoints[i+2]})
+	}
+	return points
+}
+
+func flatten2DVector3D(points [][]Vector3D) [][]float64 {
+	flatPoints := [][]float64{}
+	for _, arr := range points {
+		flatPoints = append(flatPoints, flattenVector3D(arr))
+	}
+	return flatPoints
+}
+
+func build2DVector3D(flatPoints [][]float64) [][]Vector3D {
+	points := [][]Vector3D{}
+	for _, arr := range flatPoints {
+		points = append(points, buildVector3D(arr))
+	}
+	return points
 }
 
 func gramSchmidt(vectors ...Vector3D) []Vector3D {
@@ -271,36 +311,61 @@ func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 	return triangles3D
 }
 
-func FindBasis(points []Vector3D) []Vector3D {
+func FindBasis(_points []float64) []float64 {
+	points := buildVector3D(_points)
 	vectors := findInitialVectors(points)
 	orthonormalBasis := gramSchmidt(vectors...)
 	if len(orthonormalBasis) < 2 {
 		println("Cannot find orthonormal basis")
 		return nil
 	}
-	return orthonormalBasis
+	return flattenVector3D(orthonormalBasis)
 }
 
-func ProjectShapeTo2D(plane []Vector3D, basis []Vector3D) []Vector2D {
+func ProjectShapeTo2D(_plane, _basis []float64) []float64 {
+	plane := buildVector3D(_plane)
+	basis := buildVector3D(_basis)
 	points2D := []Vector2D{}
 	for _, point3D := range plane {
 		point2D := projectPointTo2D(point3D, plane[0], basis[0], basis[1])
 		points2D = append(points2D, point2D)
 	}
-	return points2D
+	return flatten(points2D)
 }
 
-func ProjectShapeTo3D(shape []Vector2D, orthonormalBasis []Vector3D, refPoint Vector3D) []Vector3D {
+func ProjectShapeTo3D(_shape []float64, _orthonormalBasis []float64, _refPoint []float64) []float64 {
+	shape := build(_shape)
+	orthonormalBasis := buildVector3D(_orthonormalBasis)
+	refPoint := Vector3D{_refPoint[0], _refPoint[1], _refPoint[2]}
 	// Project 2D points back to 3D
 	points3D := []Vector3D{}
 	for _, point2D := range shape {
 		point3D := projectPointTo3D(point2D, refPoint, orthonormalBasis[0], orthonormalBasis[1])
 		points3D = append(points3D, point3D)
 	}
-	return points3D
+	return flattenVector3D(points3D)
 }
 
-func CreateObjFile(name string, triangles [][]Vector3D) {
+func Earcut(_faces [][]float64, _holes ...[][]float64) [][]float64 {
+	faces := build2DVector3D(_faces)
+	holes := [][][]Vector3D{}
+	for _, hole := range _holes {
+		holes = append(holes, build2DVector3D(hole))
+	}
+	triangles := [][]Vector3D{}
+	for i, face := range faces {
+		_holes := [][]Vector3D{}
+		if len(holes) > i {
+			_holes = holes[i]
+		}
+		triangles = append(triangles, transform(face, _holes...)...)
+	}
+	triangles = mergeClosePoints(triangles, 0.01) // merge points closer than 0.01
+	return flatten2DVector3D(triangles)
+}
+
+func CreateObjFile(name string, _triangles [][]float64) {
+	triangles := build2DVector3D(_triangles)
 	// Create file
 	f, err := os.Create(name)
 	if err != nil {
@@ -332,17 +397,4 @@ func CreateObjFile(name string, triangles [][]Vector3D) {
 		}
 		f.WriteString("\n")
 	}
-}
-
-func Earcut(faces [][]Vector3D, holes ...[][]Vector3D) [][]Vector3D {
-	triangles := [][]Vector3D{}
-	for i, face := range faces {
-		_holes := [][]Vector3D{}
-		if len(holes) > i {
-			_holes = holes[i]
-		}
-		triangles = append(triangles, transform(face, _holes...)...)
-	}
-	triangles = mergeClosePoints(triangles, 0.01) // merge points closer than 0.01
-	return triangles
 }
