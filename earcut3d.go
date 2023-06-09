@@ -267,7 +267,15 @@ func transform(points3D []Vector3D, holes3D ...[]Vector3D) [][]Vector3D {
 	if len(points3D) < 3 {
 		println("Not enough points to transform")
 		return nil
+	} else if len(points3D) == 3 && len(holes3D) == 0 {
+		return [][]Vector3D{points3D}
+	} else if len(points3D) == 4 && len(holes3D) == 0 {
+		return [][]Vector3D{
+			{points3D[0], points3D[1], points3D[2]},
+			{points3D[0], points3D[2], points3D[3]},
+		}
 	}
+
 	// And two direction vectors dir1 and dir2 in the plane
 	vectors := findInitialVectors(points3D)
 	orthonormalBasis := gramSchmidt(vectors...)
