@@ -78,6 +78,14 @@ func flatten2DVector3D(points [][]Vector3D) [][]float64 {
 	return flatPoints
 }
 
+func flatten3DVector3D(points [][][]Vector3D) [][][]float64 {
+	flatPoints := [][][]float64{}
+	for _, arr := range points {
+		flatPoints = append(flatPoints, flatten2DVector3D(arr))
+	}
+	return flatPoints
+}
+
 func build2DVector3D(flatPoints [][]float64) [][]Vector3D {
 	points := [][]Vector3D{}
 	for _, arr := range flatPoints {
@@ -370,6 +378,28 @@ func Earcut(_faces [][]float64, _holes ...[][]float64) [][]float64 {
 	}
 	triangles = mergeClosePoints(triangles, 0.01) // merge points closer than 0.01
 	return flatten2DVector3D(triangles)
+}
+
+func EarcutFaces(_faces [][]float64, _holes ...[][]float64) [][][]float64 {
+	// same as Earcut, but instead of returning a slice of triangles,
+	// it returns a slice of faces, each face being a slice of triangles
+	// the face indices should correspond to the input faces
+	faces := build2DVector3D(_faces)
+	holes := [][][]Vector3D{}
+	for _, hole := range _holes {
+		holes = append(holes, build2DVector3D(hole))
+	}
+	triangles := [][][]Vector3D{}
+	for i, face := range faces {
+		_holes := [][]Vector3D{}
+		if len(holes) > i {
+			_holes = holes[i]
+		}
+		_triangles := transform(face, _holes...)
+		_triangles = mergeClosePoints(_triangles, 0.01) // merge points closer than 0.01
+		triangles = append(triangles, _triangles)
+	}
+	return flatten3DVector3D(triangles)
 }
 
 func CreateObjFile(name string, _triangles [][]float64) {

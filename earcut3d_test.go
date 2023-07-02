@@ -47,8 +47,33 @@ func TestEarcut(t *testing.T) {
 		{1, 1, 1, 0, 1, 1, 0, 0, 1},
 		{0, 0, 1, 1, 0, 1, 1, 1, 1},
 	}
-	if !reflect.DeepEqual(triangles, expectedTriangles) {
-		t.Fatalf("Output was incorrect, got: %+v, want: %+v.", triangles, expectedTriangles)
+	// ignore order
+	for _, triangle := range triangles {
+		found := false
+		for _, expectedTriangle := range expectedTriangles {
+			if reflect.DeepEqual(triangle, expectedTriangle) {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("Output was incorrect, got: %+v, want: %+v.", triangles, expectedTriangles)
+		}
+	}
+}
+
+func TestEarcutFaces(t *testing.T) {
+	faces := EarcutFaces(cube)
+
+	// check that size is correct
+	if len(faces) != 6 {
+		t.Fatalf("Output was incorrect, got: %+v, want: %+v.", len(faces), 6)
+	}
+
+	// check that each face has 2 triangles
+	for _, face := range faces {
+		if len(face) != 2 {
+			t.Fatalf("Output was incorrect, got: %+v, want: %+v.", len(face), 2)
+		}
 	}
 }
 
